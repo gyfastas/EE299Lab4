@@ -123,7 +123,8 @@ int go_flag = 0;
 //this is the ISP
 void T_Handler();
 
-
+int soft_counter = 0;
+int soft_counter1_max = 10;
 //Transmit event
 void Transmit_event();
 // key variables
@@ -131,7 +132,7 @@ void Transmit_event();
 unsigned int key_state = 0;
 unsigned int key_flag = 0;
 unsigned int key_timer = 0;
-const unsigned int period = 1;//here we do a period*20ms on/off 
+const unsigned int period = 10;//here we do a period*20ms on/off 
 String p_s;
 
 
@@ -233,9 +234,13 @@ void setup() {
 void T_Handler()
 { 
   //auto play
+  if(++soft_counter>=soft_counter1_max)
+  {
+    soft_counter = 0;
   if(go_flag)
   {
     play_flag = 1 - play_flag;
+  }
   }
   //frequency + duration =0 -> end of the music
   switch(key_state)
