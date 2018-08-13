@@ -295,7 +295,7 @@ void Transmit_event()
 {
   while(Serial.available()>0)
   {
-    p_s = Serial.readString();
+    p_s +=char(Serial.read());
 
     switch(st)
     {
@@ -333,5 +333,7 @@ void Transmit_event()
     }
     
   }
+  //clear the input string when transmit finish
+  p_s = "";
 }
 
