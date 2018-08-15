@@ -110,12 +110,12 @@ const int beep = 11;
 //button on pin 10
 const int button_1 = 10;
 //time period for interrupt (ms)
-const int timer2_period = 12;
+const int timer2_period = 10;
 
 //variable for music play			
 int audio_ptr=0;
 // use pace to modify your music duration							
-float pace=0.8;  		
+float pace=1.2;  		
 //play_flag
 int play_flag =0;
 //go flag
@@ -132,7 +132,7 @@ void Transmit_event();
 unsigned int key_state = 0;
 unsigned int key_flag = 0;
 unsigned int key_timer = 0;
-const unsigned int period = 10;//here we do a period*20ms on/off 
+const unsigned int period = 5;//here we do a period*20ms on/off 
 String p_s;
 
 
