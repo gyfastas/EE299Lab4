@@ -13,6 +13,7 @@
 #define DOWN 25
 #define RIGHT 26
 #define LEFT 27
+
 #define MAX_LEN 16
 //note structure define
 struct note
@@ -20,6 +21,8 @@ struct note
   char dic ; //UP,DOWN,LEFT,RIGHT
   bool isBeat; 
 };
+
+//a easy queue class for note
 class queue
 {
   public:
@@ -119,7 +122,8 @@ class queue
       return 1;
     }
   }
-    //don't use it if you are not sure the size
+
+  //don't use it if you are not sure the size
   bool multi_generate(int num)
   { 
     note x;
@@ -135,6 +139,20 @@ class queue
     return current_size;
   }
 
+  bool to_String(String &x)
+  {
+    if(empty())
+    {
+      return 0;
+    }
+    else
+    { int i = rear;
+      while( (i-1)%MAX_LEN!=front)
+      {
+        x += data[i].dic;
+      }
+    }
+  }
   private:
   note data[MAX_LEN];
   int current_size;

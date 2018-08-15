@@ -1,18 +1,14 @@
-/*
-EE299 Lab4 -try1_2
-Simple Music Player with button to play/stop
-keep pushing to play
-
-__Version__2:
-1. Serial is used to control the music play!
-2. Write your own music on Serial!
-3. FSM : MENU CHANGE expand it if you want!
-Author: Yuanfan Guo
-Rev.0 2018.8.9
-*/
+/*EE299 Project 4
+ * 
+ * A game that plays with RGB LED.
+ * Try to make it correct with senior monitor
+ */
 #include<MsTimer2.h>
 #include<String.h>
-//some note
+#include<LiquidCrystal.h>
+#include<time.h>
+
+//note define
 #define xi0  31
 #define do1  33
 #define doS1 35
@@ -104,57 +100,25 @@ Rev.0 2018.8.9
 #define ruiS8 4978
 
 
+//arrow define
+#define NOINPUT -1
+#define UP 94 //^
+#define DOWN 95 //_
+#define RIGHT 62 // >
+#define LEFT 60 // <
 
-//beep on pin 9
-const int beep = 11;
-//button on pin 10
-const int button_1 = 10;
-//time period for interrupt (ms)
-const int timer2_period = 10;
+#define MAX_LEN 16
+//Serial string
+String p_s = "";
 
-//variable for music play			
-int audio_ptr=0;
-// use pace to modify your music duration							
-float pace=1.2;  		
-//play_flag
-int play_flag =0;
-//go flag
-int go_flag = 0;
-//this is the ISP
-void T_Handler();
+//LCD string 1、2
+char Row1[MAX_LEN];
+char Row2[MAX_LEN];
 
-int soft_counter = 0;
-int soft_counter1_max = 10;
-//Transmit event
-void Transmit_event();
-// key variables
-
-unsigned int key_state = 0;
-unsigned int key_flag = 0;
-unsigned int key_timer = 0;
-const unsigned int period = 5;
-String p_s;
-
-
-//FSM
-enum state{MENU,WRITE};
-state st,pre_st,next_st;
-
-
-void setup() {
-  // put your setup code here, to run once:
-  //20ms interrupt
-  MsTimer2::set(timer2_period,T_Handler);
-  MsTimer2::start();
-  pinMode(button_1,INPUT);
-
-  //__version__2 : serial
-  Serial.begin(9600);
-
-  //__version__2 : FSM
-  st = pre_st = next_st = MENU;
-
-  int melody[300][2]=
+//Liquid Crystal define
+LiquidCrystal lcd(2,3,4,5,6,7,8);
+  //melody 
+    int melody[300][2]=
 {
     {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{do1,200},{xi0,200},{la5,200},{so5,200},
         {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},
@@ -197,51 +161,133 @@ void setup() {
         {fa7,400},{mi7,400},{rui7,400},{do7,400},{rui6,200},{do1,200},{mi6,200},{so6,200},{la6,400},{0,0}
 };
 
-  
+//timers period is 10ms
+const int timer2_period = 10;
+//ISP for timer2 interrupt
+void T_Handler();
+
+//pin define
+int Red = 11;
+int Green = 12;
+int Blue = 13;
+int beep = 10;
+
+//test
+int button_1 = 9;
+//software counter
+//counter 1 time = soft_time_x *10 ms
+int soft_timer1_max = 30;
+int soft_timer1 = 0;
+int Soft_flag_1 = 0;
+
+//time for generate a new note
+int generate_timer_max = 90;
+int generate_timer = 0;
+int generate_flag = 0;
+
+//FSM
+enum state{GAME,LOSE};
+state st,pre_st,next_st;
+
+//variable for music play      
+int audio_ptr=0;
+// use pace to modify your music duration             
+float pace=1.2;     
+//play_flag
+int play_flag =0;
+
+// key variables
+
+unsigned int key_state = 0;
+unsigned int key_flag = 0;
+unsigned int key_timer = 0;
+const unsigned int period = 1;
+
+void move_right(char *row,int size);
+void one_generate();
+void beat_one(char *row,int size);
+
+void setup() {
+  //setup
+  randomSeed(time(NULL));
+  lcd.begin(16,2);
+  MsTimer2::set(timer2_period,T_Handler);
+  MsTimer2::start();
+  pinMode(Red,OUTPUT);
+  pinMode(Green,OUTPUT);
+  pinMode(Blue,OUTPUT);
+
+  Serial.begin(9600);
+  for(int i =0;i<16;i++)
+  {
+    Row1[i]=' ';
+    Row2[i]=' ';
+  }
+
+
+
+
+
+  bool row_sw = 0;
   while(1)
   {
-  //FSM State Change
-  if(next_st !=st)
-  { st = next_st;
-    pre_st = st;
-  }
-  if(play_flag)
-  { 
-    play_flag = 0;
-    if(melody[audio_ptr][0]==0&&melody[audio_ptr][1]==0)
+    if(generate_timer>generate_timer_max)
     {
-      audio_ptr=0;
+      generate_flag = 1;
+      generate_timer= 0;
     }
-    else
+    //Scroll right
+    if(Soft_flag_1)
     {
-      tone(beep,melody[audio_ptr][0],melody[audio_ptr][1]*pace);
-      audio_ptr++;
+      //scrollright
+      move_right(Row1,16);
+      move_right(Row2,16);
+      lcd.setCursor(0,0);
+      lcd.print(Row1);
+      lcd.setCursor(0,1);
+      lcd.print(Row2);
+      //reset timer
+      Soft_flag_1 = 0;
     }
-  }
-  //
+
+    if(generate_flag)
+    {
+        one_generate();
+        generate_flag = 0;
+    }
+
+
   if(key_flag)
   {
     key_flag = 0;
     play_flag = 1;
   }
-  Transmit_event();
+   if(play_flag)
+  { 
+    play_flag = 0;
+    beat_one(Row1,16);
+
+   beat_one(Row2,16);
+  } 
   }
 }
 
+void loop()
+{
 
-
-//20ms timer ISP
+}
 void T_Handler()
-{ 
-  //auto play
-  if(++soft_counter>=soft_counter1_max)
-  {
-    soft_counter = 0;
-  if(go_flag)
-  {
-    play_flag = 1 - play_flag;
-  }
-  }
+{
+    //soft timer counting
+    soft_timer1 ++;
+    generate_timer++;
+    if(soft_timer1>soft_timer1_max)
+    {
+      Soft_flag_1 = 1;
+      soft_timer1=0;
+    }
+
+  //key management
   //frequency + duration =0 -> end of the music
   switch(key_state)
   {
@@ -288,52 +334,87 @@ void T_Handler()
      //never forget default case 
      default:key_state = 0;break; 
   } 
+
+ 
 }
 
 
-void Transmit_event()
-{
-  while(Serial.available()>0)
-  {
-    p_s +=char(Serial.read());
 
-    switch(st)
-    {
-      case MENU:
-           if(p_s.equals("play"))
-           {
-            go_flag = 1;
-            Serial.print("play");
-           }
-           if(p_s.equals("pause"))
-           {
-            go_flag = 0;
-            play_flag = 0;
-            Serial.print("Pause");
-           }
-           if(p_s.equals("stop"))
-           {
-            Serial.print("The music is stop now.");
-            audio_ptr = 0;
-            play_flag = 0;
-            go_flag = 0;
-           }
-           if(p_s.equals("Write"))
-           {
-            next_st = WRITE;
-           }
-           break;
-      case WRITE:
-           if(p_s.equals("quit"))
-           {
-            next_st = MENU;
-           }
-      break;
-      default:break;
-    }
-    
+void move_right(char *row,int size)
+{
+  for(int i =size-1;i>=0;i--)
+  {
+    row[i+1] = row[i];
   }
-  //clear the input string when transmit finish
-  p_s = "";
+  row[0]=' ';
+
+}
+
+void one_generate()
+{
+  int x1 = random(0,2);
+  if(x1==0)
+  {
+    int x2 = random(0,4);
+    if(x2==0)
+    {
+      Row1[0]=UP;
+    }
+    else if (x2==1)
+    {
+      Row1[0]=DOWN;
+    }
+    else if(x2==2)
+    {
+      Row1[0]=LEFT;
+    }
+    else if(x2==3)
+    {
+      Row1[0]=RIGHT;
+    }
+  }
+  else
+  {
+    int x2 = random(0,4);
+    if(x2==0)
+    {
+      Row2[0]=UP;
+    }
+    else if (x2==1)
+    {
+      Row2[0]=DOWN;
+    }
+    else if(x2==2)
+    {
+      Row2[0]=LEFT;
+    }
+    else if(x2==3)
+    {
+      Row2[0]=RIGHT;
+    }
+  }
+}
+
+
+void beat_one(char*row,int size)
+{ 
+  //good place:last 4
+  if(row[size-1]!=' ')
+  {
+    row[size-1]=' ';
+  }
+  else if(row[size-2]!=' ')
+  {
+    row[size-2]=' ';
+  }
+  //perfect place:last 2
+  else if(row[size-3]!=' ')
+  {
+    row[size-3] =' ';
+  }
+  else if(row[size-4]!=' ')
+  {
+    row[size-4] = ' ';
+  }
 }
 
