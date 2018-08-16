@@ -174,7 +174,7 @@ void setup() {
   pinMode(Red,OUTPUT);
   pinMode(Green,OUTPUT);
   pinMode(Blue,OUTPUT);
-
+  pinMode(button_1,INPUT);
   Serial.begin(9600);
   for(int i =0;i<16;i++)
   {
@@ -220,10 +220,9 @@ void setup() {
   { 
     play_flag = 0;
     note_1 = beat_one(Row1,16);
-
     note_2 = beat_one(Row2,16);
-    Serial.print(note_1);
-    Serial.print(note_2);
+    Serial.write(note_1);
+    Serial.write(note_2);
   } 
   }
 }

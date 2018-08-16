@@ -5,7 +5,6 @@
  */
 #include<MsTimer2.h>
 #include<String.h>
-#include<LiquidCrystal.h>
 #include<time.h>
 
 //note define
@@ -111,9 +110,6 @@
 //Serial string
 char c;
 
-
-//Liquid Crystal define
-LiquidCrystal lcd(2,3,4,5,6,7,8);
   //melody 
     int melody[300][2]=
 {
@@ -179,13 +175,12 @@ void color_clear();
 void setup() {
   //setup
   randomSeed(time(NULL));
-  lcd.begin(16,2);
   MsTimer2::set(timer2_period,T_Handler);
   MsTimer2::start();
   pinMode(Red,OUTPUT);
   pinMode(Green,OUTPUT);
   pinMode(Blue,OUTPUT);
-
+  pinMode(beep,OUTPUT);
   Serial.begin(9600);
 }
 
