@@ -109,7 +109,8 @@
 
 #define MAX_LEN 16
 //Serial string
-String p_s = "";
+char note_1  = 0;
+char note_2 = 0;
 
 //LCD string 1、2
 char Row1[MAX_LEN];
@@ -117,49 +118,6 @@ char Row2[MAX_LEN];
 
 //Liquid Crystal define
 LiquidCrystal lcd(2,3,4,5,6,7,8);
-  //melody 
-    int melody[300][2]=
-{
-    {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{do1,200},{xi0,200},{la5,200},{so5,200},
-        {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},
-        {rui6,200},{mi6,200},{so6,200},{do7,200},{xi6,100},{do7,100},{xi6,100},{la6,100},{so6,200},{mi6,200},
-        {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},
-        {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{do1,200},{xi0,200},{la5,200},{so5,200},
-        {la5,200},{so5,100},{la5,100},{do1,200},{la5,100},{do1,100},{rui6,200},{rui6,100},{mi6,100},{so6,100},{do7,100},{mi6,100},{so6,100},
-        {do7,400},{xi6,133},{do7,133},{xi6,133},{la6,200},{so6,200},{la6,400},{la6,200},{do7,200},{0,200},
-        //����
-        {la6,250},{la6,150},{0,50},{so6,100},{la6,200},{do7,200},{rui7,200},{mi7,200},
-        {la6,250},{la6,150},{0,50},{so6,100},{la6,200},{so6,200},{mi6,200},{so6,200},
-        {la6,250},{la6,150},{la6,150},{0,50},{so6,100},{la6,200},{do7,200},{rui7,200},{mi7,200},
-        {mi7,400},{rui7,400},{do7,400},{la6,400},
-        {la6,200},{la6,200},{so6,100},{la6,200},{do7,200},{rui7,200},{mi7,200},
-        {la6,200},{la6,200},{so6,100},{la6,200},{so6,200},{so6,200},{mi6,200},
-        {la6,200},{la6,200},{so6,100},{so6,200},{la6,200},{do7,200},{rui7,200},
-        {mi7,400},{rui7,400},{do7,400},{la6,400},
-        //
-        {do7,400},{xi6,400},{la6,400},{so6,400},
-        {so6,200},{so6,100},{la6,100},{mi6,200},{rui6,200},{mi6,400},{0,200},
-        {mi6,200},{so6,200},{la6,400},{rui7,400},{xi6,400},{0,200},
-        {do7,400},{xi6,200},{so6,200},{la6,400},
-        {do7,400},{xi6,400},{la6,400},{so6,400},
-        {so6,200},{so6,100},{la6,100},{mi6,200},{rui6,200},{mi6,400},{mi6,200},{so6,200},
-        {la6,200},{la6,200},{la6,200},{la6,200},{do7,400},{rui7,400},{xi6,400},{0,200},
-        //�߳�
-        {la6,200},{do7,200},{rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-        {so7,200},{la7,200},{rui7,200},{do7,200},{mi7,400},{la6,200},{do7,200},
-        {rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-        {fa7,200},{mi7,200},{rui7,200},{do7,200},{do7,400},{la6,200},{do7,200},
-        {rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-        {so7,200},{la7,200},{rui7,200},{do7,200},{mi7,400},{la6,200},{do7,200},
-              {fa7,400},{mi7,400},{rui7,400},{do7,400},{rui7,200},{mi7,200},{xi6,200},{so6,200},{la6,400},{la6,200},{do7,200},
-              {rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-                            {so7,200},{la7,200},{rui7,200},{do7,200},{mi7,400},{la6,200},{do7,200},
-                            {rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-                            {fa7,200},{mi7,200},{rui7,200},{do7,200},{do7,400},{la6,200},{do7,200},
-                            {rui7,200},{rui7,200},{rui7,200},{mi7,200},{mi7,400},{mi7,200},{mi7,200},
-                            {so7,200},{la7,200},{rui7,200},{do7,200},{mi7,400},{la6,200},{do7,200},
-        {fa7,400},{mi7,400},{rui7,400},{do7,400},{rui6,200},{do1,200},{mi6,200},{so6,200},{la6,400},{0,0}
-};
 
 //timers period is 10ms
 const int timer2_period = 10;
@@ -205,7 +163,7 @@ const unsigned int period = 1;
 
 void move_right(char *row,int size);
 void one_generate();
-void beat_one(char *row,int size);
+char beat_one(char *row,int size);
 
 void setup() {
   //setup
@@ -225,10 +183,6 @@ void setup() {
   }
 
 
-
-
-
-  bool row_sw = 0;
   while(1)
   {
     if(generate_timer>generate_timer_max)
@@ -265,19 +219,11 @@ void setup() {
    if(play_flag)
   { 
     play_flag = 0;
-    beat_one(Row1,16);
+    note_1 = beat_one(Row1,16);
 
-    beat_one(Row2,16);
-
-    if(melody[audio_ptr][0]==0&&melody[audio_ptr][1]==0)
-    {
-      audio_ptr=0;
-    }
-    else
-    {
-      tone(beep,melody[audio_ptr][0],melody[audio_ptr][1]*pace);
-      audio_ptr++;
-    }
+    note_2 = beat_one(Row2,16);
+    Serial.print(note_1);
+    Serial.print(note_2);
   } 
   }
 }
@@ -406,25 +352,30 @@ void one_generate()
 }
 
 
-void beat_one(char*row,int size)
-{ 
+char beat_one(char*row,int size)
+{ char result = 0;
   //good place:last 4
   if(row[size-1]!=' ')
-  {
+  { 
+    result = row[size - 1];
     row[size-1]=' ';
   }
   else if(row[size-2]!=' ')
-  {
+  { 
+    result = row[size -2];
     row[size-2]=' ';
   }
   //perfect place:last 2
   else if(row[size-3]!=' ')
   {
+    result = row[size-3];
     row[size-3] =' ';
   }
   else if(row[size-4]!=' ')
-  {
+  { 
+    result = row[size -4];
     row[size-4] = ' ';
   }
+  return result;
 }
 
