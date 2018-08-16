@@ -352,29 +352,18 @@ void one_generate()
 
 
 char beat_one(char*row,int size)
-{ char result = 0;
-  //good place:last 4
-  if(row[size-1]!=' ')
-  { 
-    result = row[size - 1];
-    row[size-1]=' ';
+{
+  int i;
+  char result;
+
+  // search for a note in the last four places
+  // good place:last 4
+  // perfect place:last 2
+  for (i = 1; row[size - i] == ' ' && i <= 4; ++i);
+  if (i <= 4) {     // i == 5 if all four places are spaces
+    result = row[size - i];
+    row[size - i] = ' ';
   }
-  else if(row[size-2]!=' ')
-  { 
-    result = row[size -2];
-    row[size-2]=' ';
-  }
-  //perfect place:last 2
-  else if(row[size-3]!=' ')
-  {
-    result = row[size-3];
-    row[size-3] =' ';
-  }
-  else if(row[size-4]!=' ')
-  { 
-    result = row[size -4];
-    row[size-4] = ' ';
-  }
+
   return result;
 }
-
