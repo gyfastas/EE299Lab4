@@ -176,12 +176,12 @@ int beep = 10;
 int button_1 = 9;
 //software counter
 //counter 1 time = soft_time_x *10 ms
-int soft_timer1_max = 30;
+int soft_timer1_max = 10;
 int soft_timer1 = 0;
 int Soft_flag_1 = 0;
 
 //time for generate a new note
-int generate_timer_max = 90;
+int generate_timer_max = 9;
 int generate_timer = 0;
 int generate_flag = 0;
 
@@ -267,7 +267,17 @@ void setup() {
     play_flag = 0;
     beat_one(Row1,16);
 
-   beat_one(Row2,16);
+    beat_one(Row2,16);
+
+    if(melody[audio_ptr][0]==0&&melody[audio_ptr][1]==0)
+    {
+      audio_ptr=0;
+    }
+    else
+    {
+      tone(beep,melody[audio_ptr][0],melody[audio_ptr][1]*pace);
+      audio_ptr++;
+    }
   } 
   }
 }
