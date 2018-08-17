@@ -7,7 +7,7 @@
 #include<String.h>
 #include<LiquidCrystal.h>
 #include<time.h>
-
+#include<Wire.h>
 //note define
 #define xi0  31
 #define do1  33
@@ -118,52 +118,69 @@ char Row2[MAX_LEN];
 
 //Liquid Crystal define
 LiquidCrystal lcd(2,3,4,5,6,7,8);
+LiquidCrystal scoreBoard(9,10,11,12,13,14,15);
 
 //timers period is 10ms
 const int timer2_period = 10;
 //ISP for timer2 interrupt
 void T_Handler();
 
-//pin define
-int Red = 11;
-int Green = 12;
-int Blue = 13;
-int beep = 10;
 
-//test
-int button_1 = 9;
+//button pin define
+const int button_up = 9;
+const int button_down = 10;
+const int button_left = 11;
+const int button_right = 12;
+const int light_sensor = A1;
+
+const int sensor_thres = 200;
+int sensor_value = 0;
 //software counter
+//lcd flash rate
+int flash_timer_max = 10;
+int flash_timer = 0;
+int flash_flag = 0;
 //counter 1 time = soft_time_x *10 ms
-int soft_timer1_max = 10;
+int soft_timer1_max =30;
 int soft_timer1 = 0;
 int Soft_flag_1 = 0;
 
 //time for generate a new note
-int generate_timer_max = 9;
+int generate_timer_max = 60;
 int generate_timer = 0;
 int generate_flag = 0;
 
+
 //FSM
-enum state{GAME,LOSE};
+enum state{MENU,GAME,WIN,LOSE};
 state st,pre_st,next_st;
 
-//variable for music play      
-int audio_ptr=0;
-// use pace to modify your music duration             
-float pace=1.2;     
 //play_flag
 int play_flag =0;
 
-// key variables
+//perfect,good,bad number
+int perfect_num  = 0;
+int good_num = 0;
+int bad_num = 0;
 
-unsigned int key_state = 0;
-unsigned int key_flag = 0;
-unsigned int key_timer = 0;
-const unsigned int period = 1;
+// key variables
+int key_state_up,key_state_down,key_state_left,key_state_right = 0;
+int key_flag_up,key_flag_down,key_flag_left,key_flag_right = 0;
+int key_timer_up,key_timer_down,key_timer_left,key_timer_right = 0;
+
+const int period = 2;
 
 void move_right(char *row,int size);
+
 void one_generate();
+void flow_generate();
+
 char beat_one(char *row,int size);
+
+void lcd_flash();
+
+//debounce function
+void debounce(int button_up,int &key_state,int &key_flag,int &key_timer);
 
 void setup() {
   //setup
@@ -171,11 +188,16 @@ void setup() {
   lcd.begin(16,2);
   MsTimer2::set(timer2_period,T_Handler);
   MsTimer2::start();
-  pinMode(Red,OUTPUT);
-  pinMode(Green,OUTPUT);
-  pinMode(Blue,OUTPUT);
-  pinMode(button_1,INPUT);
+
+  pinMode(button_up,INPUT);
+  pinMode(button_down,INPUT);
+  pinMode(button_left,INPUT);
+  pinMode(button_right,INPUT);
+  pinMode(light_sensor,INPUT);
+  
   Serial.begin(9600);
+
+  //initialize the row
   for(int i =0;i<16;i++)
   {
     Row1[i]=' ';
@@ -184,11 +206,14 @@ void setup() {
 
 
   while(1)
-  {
-    if(generate_timer>generate_timer_max)
+  { 
+
+    
+    //lcd flash
+    if(flash_flag)
     {
-      generate_flag = 1;
-      generate_timer= 0;
+      flash_flag = 0;
+      lcd_flash();
     }
     //Scroll right
     if(Soft_flag_1)
@@ -196,14 +221,11 @@ void setup() {
       //scrollright
       move_right(Row1,16);
       move_right(Row2,16);
-      lcd.setCursor(0,0);
-      lcd.print(Row1);
-      lcd.setCursor(0,1);
-      lcd.print(Row2);
       //reset timer
       Soft_flag_1 = 0;
     }
-
+    
+    //generate a note
     if(generate_flag)
     {
         one_generate();
@@ -211,20 +233,26 @@ void setup() {
     }
 
 
-  if(key_flag)
+  if(key_flag_up)
   {
-    key_flag = 0;
+    key_flag_up = 0;
     play_flag = 1;
   }
+  
    if(play_flag)
   { 
     play_flag = 0;
     note_1 = beat_one(Row1,16);
-    note_2 = beat_one(Row2,16);
     Serial.write(note_1);
-    Serial.write(note_2);
-  } 
+    
   }
+
+  if(sensor_value<sensor_thres)
+  {
+    note_2 = beat_one(Row2,16);
+    Serial.write(note_2);
+  }
+}
 }
 
 void loop()
@@ -234,63 +262,30 @@ void loop()
 void T_Handler()
 {
     //soft timer counting
-    soft_timer1 ++;
-    generate_timer++;
-    if(soft_timer1>soft_timer1_max)
+    if(soft_timer1++>soft_timer1_max)
     {
       Soft_flag_1 = 1;
       soft_timer1=0;
     }
 
-  //key management
-  //frequency + duration =0 -> end of the music
-  switch(key_state)
-  {
-    case 0:
-        if(digitalRead(button_1))
-          {
-            key_state = 1;
-            key_flag = 1;
-            key_timer = 0;
-          }
-          break;
-    case 1:
-      if(digitalRead(button_1)==LOW)
-      {
-        key_state =0;
-      }
-        else
-      {
-        // long enough!Let's send a flag and get into state2 
-        if(++key_timer>period)
-        { key_timer = 0;
-          key_state = 2;
-          key_flag = 1;
-        }
-        }
-        break;
-     case 2:
-        if(digitalRead(button_1) == LOW)
-        {
-            key_state = 0;
-            key_timer = 0;
-        }
-        else
-        {
-            if(++key_timer > period)
-            // long enough! Let's send our masseage
-            {
-              key_timer = 0;
-              key_flag = 1;
-              
-            }
-         }
-        break;
-     //never forget default case 
-     default:key_state = 0;break; 
-  } 
+    if (generate_timer++> generate_timer_max)
+    {
+      generate_flag = 1;
+      generate_timer = 0;
+    }
+    if(flash_timer++> flash_timer_max)
+    {
+      flash_timer = 0;
+      flash_flag = 1;
+    }
+    sensor_value = analogRead(light_sensor);
+    debounce(button_up, key_state_up, key_flag_up, key_timer_up);
+    /*
+    debounce(button_down,key_state_down,key_flag_down,key_timer_down);
+    debounce(button_left,key_state_left,key_flag_left,key_timer_left);
+    debounce(button_right,key_state_right,key_flag_right,key_timer_right);
+    */
 
- 
 }
 
 
@@ -350,20 +345,138 @@ void one_generate()
   }
 }
 
+void flow_generate()
+{
+  int x1 = random(0,2);
+  int x2 = random(0,4);
+  int x3 = random(2,10);
+  if (x1 == 0)
+  {
+    if (x2 == 0)
+    {
+      Row1[0] = UP;
+    }
+    else if (x2 == 1)
+    {
+      Row1[0] = DOWN;
+    }
+    else if (x2 == 2)
+    {
+      Row1[0] = LEFT;
+    }
+    else if (x2 == 3)
+    {
+      Row1[0] = RIGHT;
+    }
+    for (int i = 1; i < x3; i++)
+    {
+      Row1[i] = Row1[0];
+    }
+    for(int i = 1;i<x3;i++)
+    {
+      Row1[i] = Row1[0];
+    }
+  }
+  else
+  {
+    if (x2 == 0)
+    {
+      Row2[0] = UP;
+    }
+    else if (x2 == 1)
+    {
+      Row2[0] = DOWN;
+    }
+    else if (x2 == 2)
+    {
+      Row2[0] = LEFT;
+    }
+    else if (x2 == 3)
+    {
+      Row2[0] = RIGHT;
+    }
+    for(int i = 1;i<x3;i++)
+    {
+      Row2[i]=Row2[0];
+    }
+  }
+
+}
 
 char beat_one(char*row,int size)
-{
-  int i;
+{ 
   char result;
 
   // search for a note in the last four places
   // good place:last 4
   // perfect place:last 2
-  for (i = 1; row[size - i] == ' ' && i <= 4; ++i);
-  if (i <= 4) {     // i == 5 if all four places are spaces
-    result = row[size - i];
-    row[size - i] = ' ';
+  for (int i = 1; i<=4;i++)
+  {
+    if(row[size-i]!=' ')
+    {
+      result = row[size-i];
+      row[size-i]=' ';
+      return result;
+    }
+    
   }
+}
 
-  return result;
+void debounce(int button_up,int &key_state,int &key_flag,int &key_timer)
+{
+  //key management
+  //frequency + duration =0 -> end of the music
+  switch(key_state)
+  {
+    case 0:
+        if(digitalRead(button_up))
+          {
+             key_state= 1;
+            key_flag = 1;
+            key_timer = 0;
+          }
+          break;
+    case 1:
+      if(digitalRead(button_up)==LOW)
+      {
+         key_state=0;
+      }
+        else
+      {
+        // long enough!Let's send a flag and get into state2 
+        if(++key_timer>period)
+        { key_timer = 0;
+          key_state = 2;
+          key_flag = 1;
+        }
+        }
+        break;
+     case 2:
+        if(digitalRead(button_up) == LOW)
+        {
+            key_state = 0;
+            key_timer = 0;
+        }
+        else
+        {
+            if(++key_timer > period)
+            // long enough! Let's send our masseage
+            {
+              key_timer = 0;
+              key_flag = 1;
+            }
+         }
+        break;
+     //never forget default case 
+     default:key_state = 0;break; 
+  } 
+}
+
+
+void lcd_flash()
+{
+  lcd.setCursor(0, 0);
+  lcd.print(Row1);
+  lcd.setCursor(0, 1);
+  lcd.print(Row2);
 }
