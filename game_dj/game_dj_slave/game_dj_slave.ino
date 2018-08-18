@@ -101,16 +101,41 @@
 
 //arrow define
 #define NOINPUT -1
-#define UP 94 //^
-#define DOWN 95 //_
-#define RIGHT 62 // >
-#define LEFT 60 // <
 
 #define MAX_LEN 16
 //Serial string
 char c;
+//timers period is 10ms
+const int timer2_period = 20;
+//ISP for timer2 interrupt
+void T_Handler();
 
-  //melody 
+//pin define
+int beep = 10;
+int Red = 11;
+int Green = 13;
+int Blue = 12;
+
+
+//variable for music play      
+int audio_ptr=0;
+// use pace to modify your music duration             
+float pace=1.4;     
+//play_flag
+int play_flag =0;
+int go_flag = 0;
+void color_clear();
+
+void setup() {
+  //setup
+  MsTimer2::set(timer2_period,T_Handler);
+  MsTimer2::start();
+  pinMode(Red,OUTPUT);
+  pinMode(Green,OUTPUT);
+  pinMode(Blue,OUTPUT);
+  pinMode(beep,OUTPUT);
+  Serial.begin(9600);
+    //melody 
     int melody[300][2]=
 {
     {rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{rui6,200},{mi6,200},{la5,100},{so5,100},{la5,100},{so5,100},{do1,200},{xi0,200},{la5,200},{so5,200},
@@ -151,96 +176,67 @@ char c;
         {fa7,400},{mi7,400},{rui7,400},{do7,400},{rui6,200},{do1,200},{mi6,200},{so6,200},{la6,400},{0,0}
 };
 
-//timers period is 10ms
-const int timer2_period = 10;
-//ISP for timer2 interrupt
-void T_Handler();
-
-//pin define
-int beep = 10;
-int Red = 11;
-int Green = 12;
-int Blue = 13;
-
-
-//variable for music play      
-int audio_ptr=0;
-// use pace to modify your music duration             
-float pace=1.4;     
-//play_flag
-int play_flag =0;
-
-void color_clear();
-
-void setup() {
-  //setup
-  randomSeed(time(NULL));
-  MsTimer2::set(timer2_period,T_Handler);
-  MsTimer2::start();
-  pinMode(Red,OUTPUT);
-  pinMode(Green,OUTPUT);
-  pinMode(Blue,OUTPUT);
-  pinMode(beep,OUTPUT);
-  Serial.begin(9600);
-}
-
-void loop()
+while(1)
 {
-  
-   if(play_flag)
-  { 
+  if (play_flag)
+  {
     play_flag = 0;
 
-    if(melody[audio_ptr][0]==0&&melody[audio_ptr][1]==0)
+    if (melody[audio_ptr][0] == 0 && melody[audio_ptr][1] == 0)
     {
-      audio_ptr=0;
+      audio_ptr = 0;
     }
     else
     {
-      tone(beep,melody[audio_ptr][0],melody[audio_ptr][1]*pace);
+      tone(beep, melody[audio_ptr][0], melody[audio_ptr][1] * pace);
       audio_ptr++;
     }
   }
 
-
-  while(Serial.available()>0)
-  {
+  while (Serial.available() > 0)
+  { 
     c = Serial.read();
-    if(c==UP)
-    { 
-      color_clear();
-      digitalWrite(Red,HIGH);
-      play_flag = 1;
+    if (c=='s')
+    {
+      go_flag = 1;
     }
-    else if (c==DOWN)
-    { 
-      color_clear();
-      digitalWrite(Green,HIGH);
-      play_flag = 1;
+    if (c=='n')
+    {
+      go_flag = 0;
     }
-    else if (c==LEFT)
+    if (c == 'p')
     {
       color_clear();
-      digitalWrite(Blue,HIGH);
-      play_flag = 1;
+      digitalWrite(Green, LOW);
     }
-    else if(c==RIGHT)
+    else if (c == 'g')
     {
-      digitalWrite(Red,HIGH);
-      digitalWrite(Green,HIGH);
-      digitalWrite(Blue,HIGH);
-      play_flag = 1;
+      color_clear();
+      digitalWrite(Red, LOW);
+      digitalWrite(Green,LOW);
     }
-  } 
+    else if (c == 'b')
+    {
+      color_clear();
+      digitalWrite(Red, LOW);
+    }
+  
+  }
+}
+}
+
+void loop()
+{
 }
 void T_Handler()
-{
-
+{ 
+  if(go_flag)
+  play_flag = 1;
 }
 
 void color_clear()
 {
-  digitalWrite(Red,LOW);
-  digitalWrite(Green,LOW);
-  digitalWrite(Blue,LOW);
+  digitalWrite(Red,HIGH);
+  digitalWrite(Green,HIGH);
+  digitalWrite(Blue,HIGH);
 }
