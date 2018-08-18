@@ -36,34 +36,41 @@ void T_Handler();
 const int button_up = 9;
 const int light_sensor = A1;
 
+//sensor
 const int sensor_thres = 200;
 int sensor_value = 0;
+int sensor_state = 0;
+int sensor_timer = 0;
+int sensor_flag  = 0;
 
 //counter 1 time = soft_time_x *10 ms
-int soft_timer1_max =30;
+int soft_timer1_max =50;
 int soft_timer1 = 0;
 int Soft_flag_1 = 0;
 
 //time for generate a new note
-int generate_timer_max = 60;
+int generate_timer_max = 150;
 int generate_timer = 0;
 int generate_flag = 0;
 
 //time for generate a flow
-int generate_flow_timer_max  = 160;
+int generate_flow_timer_max  = 300;
 int generate_flow_timer = 0;
 int generate_flow_flag = 0;
 
-//FSM
-enum state{MENU,GAME,WIN,LOSE};
+//FSM STATE:
+enum state{MENU,PREGAME,GAME};
 state st,pre_st,next_st;
+//
 
 //play_flag
 int play_flag =0;
 
 //perfect,good,bad number
 int perfect_num  = 0;
+
 int good_num = 0;
+
 int bad_num = 0;
 
 // key variables
@@ -71,7 +78,16 @@ int key_state_up = 0;
 int key_flag_up = 0;
 int key_timer_up = 0;
 
+//print state
+int Game_Level = 0;
+//game start count
+int game_start_max = 300;//game start in 3s
+int game_start_timer = 0;
+
+
 const int period = 2;
+
+void game_initialize();
 
 void move_right(char *row,int size);
 
@@ -120,89 +136,175 @@ void setup()
     Row2[i]=' ';
   }
   
-  show_buttom();
+  st = next_st = pre_st = MENU;
 }
 
 void loop()
 {
-
-
-  //Scroll right
-  if (Soft_flag_1)
-  {
-    //scrollright
-    move_right(Row1, 15);
-    move_right(Row2, 15);
-    lcd_flash();
-    //reset timer
-    Soft_flag_1 = 0;
+  //state change
+  if(st!=next_st)
+  { 
+    pre_st = st;
+    //jump function(trigger once)
+    switch(st)
+    {
+      case MENU:
+                lcd.clear();
+                lcd.print("START");
+                lcd.setCursor(0,1);
+                lcd.print("LEVEL:");
+                break;
+      case PREGAME:
+                game_start_timer = 0;
+                lcd.clear();
+                lcd.print("START IN");
+                break;            
+      case GAME:
+                //show buttom lines
+                //initiaizing
+                game_initialize();
+                show_buttom();
+                break;
+      default:break;
+    }
+    st = next_st;
+    
   }
 
-  //generate a note
-  if(generate_flow_flag)
-  {
-    one_generate(FLOW);
-    generate_flow_flag--;
-  }
-  else if (generate_flag)
-  {
-    one_generate(SINGLE);
-    generate_flag = 0;
-  }
 
-  if (key_flag_up)
+  switch(st)
   {
-    key_flag_up = 0;
-    play_flag = 1;
-  }
+  
+  case MENU:
+        if(sensor_flag)
+        {
+          sensor_flag = 0;
+          if(Game_Level++>5)
+            Game_Level = 0;
+          
+          soft_timer1_max = 50-Game_Level*5;
+          generate_flow_timer_max = soft_timer1_max*8-Game_Level*5;
+          generate_timer_max = soft_timer1_max*4-Game_Level*10;
+        }
+        // key -> ready to start
+        if(key_flag_up)
+        {
+          key_flag_up = 0;
+          next_st = PREGAME;
+        }
 
-  if (play_flag)
-  {
-    play_flag = 0;
-    note_1 = beat_one(Row1, 15);
-    Serial.write(note_1);
-  }
+        if(Soft_flag_1)
+        {
+          Soft_flag_1 = 0;
+          lcd.setCursor(6,1);
+          lcd.print(Game_Level);
+        }
+        break;
+  
+  case PREGAME:
+        if(Soft_flag_1)
+        {
+          Soft_flag_1 = 0;
+          lcd.setCursor(8,0);
+          lcd.print((game_start_max-game_start_timer)/100 +1);
+        }
+        break;
+  case GAME:
+        //Scroll right
+        if (Soft_flag_1)
+        {
+          move_right(Row1, 15);
+          move_right(Row2, 15);
+          lcd_flash();
+          //reset timer
+          Soft_flag_1 = 0;
+        }
 
-  if (sensor_value < sensor_thres)
-  {
-    note_2 = beat_one(Row2, 15);
-    Serial.write(note_2);
+        //generate a note
+        if(generate_flow_flag)
+        {
+          one_generate(FLOW);
+          generate_flow_flag--;
+        }
+        else if (generate_flag)
+        {
+          one_generate(SINGLE);
+          generate_flag = 0;
+        }
+
+        if (key_flag_up)
+        {
+          key_flag_up = 0;
+          play_flag = 1;
+        }
+
+        if (play_flag)
+        {
+          play_flag = 0;
+          note_1 = beat_one(Row1, 15);
+          Serial.write(note_1);
+        }
+
+        if (sensor_flag)
+        { 
+          sensor_flag  = 0;
+          note_2 = beat_one(Row2, 15);
+          Serial.write(note_2);
+        }
+        break;
+  default: break;
   }
 }
 void T_Handler()
 {
     //soft timer counting
-    if(soft_timer1++>soft_timer1_max)
+    if(st == PREGAME)
+    { 
+      if(game_start_timer++>game_start_max)
+      { 
+        //game start triger by counting to 3s
+        next_st = GAME;
+        game_start_timer = 0;
+      }
+    }
+    if (soft_timer1++ > soft_timer1_max)
     {
       Soft_flag_1 = 1;
-      soft_timer1=0;
+      soft_timer1 = 0;
     }
-
-    if (generate_timer++> generate_timer_max)
+    if(st ==GAME)
     {
-      generate_flag = 1;
-      generate_timer = 0;
+      if (generate_timer++> generate_timer_max)
+      {
+        generate_flag = 1;
+        generate_timer = 0;
+      }
+      if (generate_flow_timer > generate_flow_timer_max)
+      {
+        generate_flow_flag = random(2,10);
+        generate_flow_timer = 0;
+      }
+      
     }
-    if (generate_flow_timer > generate_flow_timer_max)
-    {
-      generate_flow_flag = random(2,10);
-      generate_flow_timer = 0;
-    }
-    
-    
+    //sensor flag generate
     sensor_value = analogRead(light_sensor);
-    debounce(button_up, key_state_up, key_flag_up, key_timer_up);
-    /*
-    debounce(button_down,key_state_down,key_flag_down,key_timer_down);
-    debounce(button_left,key_state_left,key_flag_left,key_timer_left);
-    debounce(button_right,key_state_right,key_flag_right,key_timer_right);
-    */
+    if (sensor_value < sensor_thres)
+      sensor_value = 1;
+    else
+      sensor_value = 0;
 
+    debounce(sensor_value,sensor_state,sensor_flag,sensor_timer);
+    debounce(digitalRead(button_up), key_state_up, key_flag_up, key_timer_up);
 }
 
 void move_right(char *row,int size)
-{
-  for(int i =size-1;i>=0;i--)
+{ 
+  //not beat
+  if(row[size-1]!=' ')
+  {
+    bad_num++;
+  }
+  for(int i =size-2;i>=0;i--)
   {
     row[i+1] = row[i];
   }
@@ -237,27 +339,26 @@ char beat_one(char*row,int size)
       result = row[size-i];
       row[size-i]=' ';
       return result;
-    }
-    
+    } 
   }
 }
 
-void debounce(int button_up,int &key_state,int &key_flag,int &key_timer)
+void debounce(int value,int &key_state,int &key_flag,int &key_timer)
 {
   //key management
   //frequency + duration =0 -> end of the music
   switch(key_state)
   {
     case 0:
-        if(digitalRead(button_up))
+        if(value)
           {
-             key_state= 1;
+            key_state= 1;
             key_flag = 1;
             key_timer = 0;
           }
           break;
     case 1:
-      if(digitalRead(button_up)==LOW)
+      if(!value)
       {
          key_state=0;
       }
@@ -272,7 +373,7 @@ void debounce(int button_up,int &key_state,int &key_flag,int &key_timer)
         }
         break;
      case 2:
-        if(digitalRead(button_up) == LOW)
+        if(!value)
         {
             key_state = 0;
             key_timer = 0;
@@ -301,10 +402,24 @@ void lcd_flash()
   lcd.print(Row2);
 }
 
+
 void show_buttom()
 {
   lcd.setCursor(15,0);
-  lcd.write(byte(0));
+  lcd.print(byte(0));
   lcd.setCursor(15,1);
-  lcd.write(byte(1));
+  lcd.print(byte(1));
+}
+
+
+void game_initialize()
+{
+    soft_timer1 = 0;
+    Soft_flag_1 = 0;
+    generate_flag = 0;
+    generate_flow_flag = 0;
+    generate_flow_timer = 0;
+    generate_timer = 0;
+    sensor_flag = 0;
+    sensor_timer = 0;
 }
