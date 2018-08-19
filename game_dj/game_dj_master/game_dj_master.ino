@@ -14,6 +14,7 @@
 #define FLOW 60   //flow
 
 #define MAX_LEN 16
+#define GL_PARA 120
 //Serial string
 char note_1  = 0;
 char note_2 = 0;
@@ -32,9 +33,10 @@ const int timer2_period = 10;
 void T_Handler();
 
 
-//button pin define
+// pin define
 const int button_up = 9;
 const int light_sensor = A4;
+const int Rotation = A5;
 
 //sensor
 const int sensor_thres = 200;
@@ -43,10 +45,10 @@ int sensor_state = 0;
 int sensor_timer = 0;
 int sensor_flag  = 0;
 
-//counter 1 time = soft_time_x *10 ms
-int soft_timer1_max =60;
-int soft_timer1 = 0;
-int Soft_flag_1 = 0;
+//counter 1 time = timer_max *10 ms
+int scroll_timer_max =60;
+int scroll_timer = 0;
+int scroll_flag = 0;
 
 //time for generate a new note
 int generate_timer_max = 150;
@@ -83,7 +85,11 @@ int game_start_max = 300;//game start in 3s
 int game_start_timer = 0;
 
 
-const int period = 3;
+int generate_row =  0;
+const int period = 20;
+
+int note_generate_calculation(int Game_Level);
+int note_flow_generate_calculation(int Game_Level);
 
 void game_initialize();
 
@@ -130,7 +136,7 @@ void setup()
 
   pinMode(button_up,INPUT);
   pinMode(light_sensor,INPUT);
-  
+  pinMode(Rotation,INPUT);
   Serial.begin(9600);
   //initialize the row
   for(int i =0;i<MAX_LEN;i++)
@@ -176,42 +182,36 @@ void loop()
   
   case MENU:
         // key -> ready to start
-        if(key_flag_up)
+
+        if(scroll_flag)
         {
+          
+          Game_Level = analogRead(Rotation)/GL_PARA;
+          scroll_timer_max = 60 - Game_Level * 5;
+          key_flag_up = digitalRead(button_up);
+         if(key_flag_up)
+          {
           key_flag_up = 0;
           next_st = PREGAME;
-        }
-
-        if(Soft_flag_1)
-        {
-          if (sensor_flag)
-          {
-            sensor_flag = 0;
-            if (Game_Level++ > 5)
-              Game_Level = 0;
-
-            soft_timer1_max = 50 - Game_Level * 5;
-            generate_flow_timer_max = soft_timer1_max * 8 - Game_Level * 5;
-            generate_timer_max = soft_timer1_max * 4 - Game_Level * 10;
           }
           lcd.setCursor(0,0);
           lcd.print("START");
           lcd.setCursor(0, 1);
           lcd.print("LEVEL:");
-          Soft_flag_1 = 0;
+          scroll_flag = 0;
           lcd.setCursor(6,1);
           lcd.print(Game_Level);
         }
         break;
   
   case PREGAME:
-        if(Soft_flag_1)
+        if(scroll_flag)
         {
           lcd.setCursor(0,0);
           scoreBoard.setCursor(0,0);
           lcd.print("START IN");
           scoreBoard.print("START IN");
-          Soft_flag_1 = 0;
+          scroll_flag = 0;
           lcd.setCursor(8,0);
           lcd.print((game_start_max-game_start_timer)/100 +1);
           scoreBoard.setCursor(8, 0);
@@ -220,27 +220,24 @@ void loop()
         break;
   case GAME:
         //Scroll right
-        if (Soft_flag_1)
+        if (scroll_flag)
         {
 
-          if (key_flag_up)
-          {
-            key_flag_up = 0;
-            note_1 = beat_one(Row1, MAX_LEN);
-            Serial.write(note_1);
-          }
-          if (sensor_flag)
-          {
-            sensor_flag = 0;
-            note_2 = beat_one(Row2, MAX_LEN);
-            Serial.write(note_2);
-          }
+          Game_Level = analogRead(Rotation) / GL_PARA ;
+          scroll_timer_max = 60 - Game_Level * 5 ;
+          generate_timer_max = note_generate_calculation(Game_Level);
+          generate_flow_timer_max = note_flow_generate_calculation(Game_Level);
+
           move_right(Row1, MAX_LEN);
           move_right(Row2, MAX_LEN);
           lcd_flash();
           //reset timer
-          Soft_flag_1 = 0;
-
+          scroll_flag = 0;
+          sensor_value = analogRead(light_sensor);
+          if (sensor_value < sensor_thres)
+            sensor_flag = 1;
+          else
+            sensor_flag = 0;
           //score board show
           scoreBoard.setCursor(0,0);
           scoreBoard.print("P:");
@@ -257,17 +254,36 @@ void loop()
           scoreBoard.setCursor(0,1);
           scoreBoard.print("COMBO:");
           scoreBoard.print(combo_life);
+          scoreBoard.setCursor(10,1);
+          scoreBoard.print("Lv:");
+          scoreBoard.setCursor(14,1);
+          scoreBoard.print(Game_Level);
         }
-
+        if (key_flag_up)
+        {
+          key_flag_up = 0;
+          note_1 = beat_one(Row1, MAX_LEN);
+          Serial.write(note_1);
+        }
+        if (sensor_flag)
+        { 
+          sensor_flag = 0;
+          note_2 = beat_one(Row2, MAX_LEN);
+          Serial.write(note_2);
+        }
         //generate a note
         if(generate_flow_flag)
         {
-          one_generate(FLOW);
+          if(generate_row==0)
+          Row1[0]= '*';
+          else
+          Row2[0]= '*';
+          
           generate_flow_flag--;
         }
         else if (generate_flag)
         {
-          one_generate(SINGLE);
+          one_generate('*');
           generate_flag = 0;
         }
         break;
@@ -297,33 +313,30 @@ void T_Handler()
         game_start_timer = 0;
       }
     }
-    if (soft_timer1++ > soft_timer1_max)
+
+    if (scroll_timer++ > scroll_timer_max)
     {
-      Soft_flag_1 = 1;
-      soft_timer1 = 0;
+      scroll_flag = 1;
+      scroll_timer = 0;
     }
+
     if(st ==GAME)
     {
-      if (generate_timer++> generate_timer_max)
+      if (generate_timer++> generate_timer_max&&generate_flag==0)
       {
         generate_flag = 1;
         generate_timer = 0;
       }
-      if (generate_flow_timer > generate_flow_timer_max)
+      if (generate_flow_timer > generate_flow_timer_max&&generate_flow_flag==0)
       {
         generate_flow_flag = random(2,10);
+        generate_row = random(0,2);
         generate_flow_timer = 0;
       }
-      //sensor flag generate
-      sensor_value = analogRead(light_sensor);
-      if (sensor_value < sensor_thres)
-        sensor_value = 1;
-      else
-        sensor_value = 0;
+
+      debounce(digitalRead(button_up), key_state_up, key_flag_up, key_timer_up);
     }
 
-    debounce(sensor_value,sensor_state,sensor_flag,sensor_timer);
-    debounce(digitalRead(button_up), key_state_up, key_flag_up, key_timer_up);
 }
 
 void move_right(char *row,int size)
@@ -451,8 +464,8 @@ void show_buttom()
 
 void game_initialize()
 {
-    soft_timer1 = 0;
-    Soft_flag_1 = 0;
+    scroll_timer = 0;
+    scroll_flag = 0;
     generate_flag = 0;
     generate_flow_flag = 0;
     generate_flow_timer = 0;
@@ -481,4 +494,20 @@ void Unretrigerable_debounce(int value,int &key_state,int &key_flag)
         break;
     default: break;
   }
+}
+
+
+int note_generate_calculation(int Game_Level)
+{
+  //basic:3 times as the scroll rate 
+  int basic_speed = 3*scroll_timer_max;
+  int GL_gain  = 6*Game_Level;
+  return basic_speed-GL_gain;
+}
+int note_flow_generate_calculation(int Game_Level)
+{
+  //basic:6 times as the scroll rate 
+  int basic_speed = 8*scroll_timer_max;
+  int GL_gain  = 7*Game_Level;
+  return basic_speed -GL_gain;
 }
