@@ -2,11 +2,6 @@
  * 
  * A game that plays with RGB LED.
  * Try to make it correct with senior monitor
- * 
- * Author:Yuanfan Guo
- * Rev.0 2018.8.15
- * Rev.1 2018.8.16
- * Rev.2 2018.8.19
  */
 #include<MsTimer2.h>
 #include<String.h>

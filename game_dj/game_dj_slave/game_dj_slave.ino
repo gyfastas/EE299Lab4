@@ -106,7 +106,7 @@
 //Serial string
 char c;
 //timers period is 10ms
-const int timer2_period = 20;
+const int timer2_period = 30;
 //ISP for timer2 interrupt
 void T_Handler();
 
@@ -120,7 +120,7 @@ int Blue = 12;
 //variable for music play      
 int audio_ptr=0;
 // use pace to modify your music duration             
-float pace=1.4;     
+float pace=1.0;     
 //play_flag
 int play_flag =0;
 int go_flag = 0;
